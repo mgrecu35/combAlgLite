@@ -109,15 +109,17 @@ subroutine mainfortpy()
   do i=1,7
      !call mie2(i-3.)
   enddo
-  
+ ! print*, 'all right'
+ ! stop
   nmfreq=8
   nmu=5
-  call init_random_seed(rseed1,rseed2)
-  print *, 'Random Seeds : ',rseed1,rseed2
-  print*, ialg
+  !call init_random_seed(rseed1,rseed2)
+  !print *, 'Random Seeds : ',rseed1,rseed2
+  !print*, ialg
 
   call readtablesLiang2(nmu,nmfreq)         !This option reads in Liang's mu=2 table
-  
+  print*, 'OK'
+  stop
   call makeHashTables()
   call cloud_init(nmfreq) 
   call initWFlag(nmfreq)

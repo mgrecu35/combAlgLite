@@ -46,15 +46,15 @@ INC=    -I$(HDF4_INC)\
 	-Iflann/include/\
         -I$(TKIO)/inc/ccode\
         -I/usr/local/include/\
-        -I/home/grecu/cmbv6x/multiscatter-1.2.10/include
+        -I/home/grecu/multiscatter-1.2.10/include
 
 #---Required library files
 LIB =	-L$(HDF5_LIB) \
 	-L$(HDF4_LIB) \
 	-L$(TKIO)/lib \
 	-Llapack-3.4.1\
-	-Lflann/lib -L/home/grecu/cmbv6x/multiscatter-1.2.10/lib \
-        -L/PANFS/local/intel/Compiler/14.0.1/lib/intel64/ \
+	-Lflann/lib -L/home/grecu/multiscatter-1.2.10/lib \
+        -L/home/grecu/anaconda3/lib \
 
 #---List of Normal Libraires to Search for References during Linkage
 
@@ -74,21 +74,20 @@ OBJ =	f90DataTypes.o  random.o writegif.o nbin.o\
 	rterain.o \
         convPix2.py.o latlon.o setOpt.o convAllFreq.o asciiCon.o writeEnKF.o screenocean.o\
 	filterUp1.o\
-        kgainBLAS.o getScattProp.o armadillo_funcs.o
-
-OBJEXE	=    $(OBJ)  src_f90/mainfpy.f90
+        kgainBLAS.o getScattProp.o rosen.o
+OBJEXE	=    $(OBJ)  
 
 #---Link and create Executable
-combAlgLib:  $(OBJEXE)
-    gcc -shared -o combAlgLib.so $(OBJEXE)
+combAlgLib:	$(OBJEXE)
+	gcc -shared -o combAlgLib.so $(OBJEXE) -lgfortran
     
-combAlg:	$(OBJEXE)
+combAlg:	$(OBJEXE) src_f90/mainfpy.f90
 		f2py -c -m combAlg --f90flags="-fopenmp" --arch="-fopenmp"\
 		src_f90/fobjective.f90 src_f90/mainfpy.f90 \
                 src_f90/hbprof_new.f90 \
 		src_f90/bisection.f90  src_f90/simpleFModel.f90 \
-                src_f90/forwardModel.f90 src_f90/emissivity-sp.f src_f90/radtran_tau_dble.f src_f90/rosen.f src_f90/multiscatter.f90\
-                src_f90/absorption3D.f90 $(OBJ)  $(LIB) $(LIBES) -lstdc++
+                src_f90/forwardModel.f90 src_f90/emissivity-sp.f src_f90/radtran_tau_dble.f src_f90/multiscatter.f90\
+                src_f90/absorption3D.f90  $(OBJ)  $(LIB) $(LIBES) -lgfortran
 
 #---Auxiliary Functions
 clean:
@@ -126,7 +125,7 @@ rteModule.o:	src_f90/rteModule.f90
 		$(F90) -c  -O2 src_f90/rteModule.f90
 
 armadillo_funcs.o:
-		g++  -std=c++11 -c -fPIC -DARMA_DONT_USE_WRAPPER -I./src_c/armadillo-10.1.2/include src_c/armadillo_funcs.cpp
+		g++  -std=c++11 -c -fPIC -DARMA_DONT_USE_WRAPPER -I./src_c/armadillo-10.8.2/include src_c/armadillo_funcs.cpp
 
 rainDisc.o:	rainDisc.f90
 		$(F90) -c  -O2 rainDisc.f90
@@ -217,7 +216,7 @@ convPix.o:	convPix.f90
 		$(F90) -c  -O2 convPix.f90
 
 globModule.o:	src_f90/globModule.f90
-		$(F90) -c  -O2 src_f90/globModule.f90
+		$(F90) -c  -fPIC -O2 src_f90/globModule.f90
 
 writeCMB.rend.o:	writeCMB.rend.c
 		$(CC) -c  -O2  $(INC) writeCMB.rend.c
@@ -288,7 +287,7 @@ binaryOut.o:	binaryOut.c
 		$(CC) -c -O2 binaryOut.c
 
 multiscatter2_ascii.o:	src_c/multiscatter2_ascii.c
-		$(CC) -I/home/grecu/cmbv6x/multiscatter-1.2.10/include -c -O2 src_c/multiscatter2_ascii.c
+		$(CC) -I/home/grecu/multiscatter-1.2.10/include -c -O2 src_c/multiscatter2_ascii.c
 
 best2.o:	best2.c
 		$(CC) -c -O2 best2.c
