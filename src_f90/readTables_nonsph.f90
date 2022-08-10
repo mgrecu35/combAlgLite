@@ -256,7 +256,7 @@ subroutine readTables2(extnmu,extnmfreq)
      mu_tab(imu) = mu
      !write(*, '("imu: ", i5, "  mu: ", f10.4, "  mu_tab: ", f10.4)') imu, mu, mu_tab(imu)
 !end    WSO 8/8/13
-     write(mus,20) mu
+     !write(mus,20) mu
      if(mus(1:1).ne.'-') mus(1:1)='0'
      
      open(10,file='TablesN/tables.13-35GHz.mu.'//mus)
@@ -542,7 +542,8 @@ subroutine readTablesLiang2(extnmu,extnmfreq)
      !write(*, '("imu: ", i5, "  mu: ", f10.4, "  mu_tab: ", f10.4)') imu, mu, mu_tab(imu)
 !end    WSO 8/8/13
      write(mus,20) mu
-     
+     !print*, mus
+     !stop
      if(mus(1:1).ne.'-') then 
         mus(1:1)='0'
         open(10,file='TablesN/tables.microw.mu.'//mus)
