@@ -10,14 +10,22 @@ def calc_pia(att,pia,dr,n):
         else:
             pia[k]=pia[k-1]+(att[k]+att[k-1])*dr
             
-def calcz(pwc,dm,cAlg,i0,j0,fint):
+def calcz(pwc,dm,cAlg,i0,j0,fint,sfcBin,binNodes):
     swc=pwc[i0,j0,:]*(1-fint)
     rwc=pwc[i0,j0,:]*fint
     a1=np.nonzero(swc>0)
     zKus=np.zeros((88),float)-99
     zKas=np.zeros((88),float)-99
+    zKur=np.zeros((88),float)-99
+    zKar=np.zeros((88),float)-99
     pRate=np.zeros((88),float)
     att_ka=np.zeros((88),float)
+    kextH1=np.zeros((88,8),float)
+    salbH1=np.zeros((88,8),float)
+    asymH1=np.zeros((88,8),float)
+    kextH2=np.zeros((88,8),float)
+    salbH2=np.zeros((88,8),float)
+    asymH2=np.zeros((88,8),float)
     dr=0.25
     n=88
     pia_ka=np.zeros((88),float)
@@ -29,7 +37,12 @@ def calcz(pwc,dm,cAlg,i0,j0,fint):
         zKas[a1[0][ik]]=cAlg.tablep2.zkas[ibin]+10*dn
         pRate[a1[0][ik]]=cAlg.tablep2.snowrate[ibin]*10**dn
         att_ka[a1[0][ik]]=cAlg.tablep2.attkas[ibin]*10**dn
-    zKur=np.zeros((88),float)-99
+        kextH1[a1[0][ik],:]+=cAlg.tablep2.kexts2[ibin,:]*10**dn
+        salbH1[a1[0][ik],:]+=cAlg.tablep2.kexts2[ibin,:]*10**dn*\
+            cAlg.tablep2.salbs2[ibin,:]
+        asymH1[a1[0][ik],:]+=cAlg.tablep2.kexts2[ibin,:]*10**dn*\
+            cAlg.tablep2.salbs2[ibin,:]*cAlg.tablep2.asyms2[ibin,:]
+        zKur=np.zeros((88),float)-99
     zKar=np.zeros((88),float)-99
     a1=np.nonzero(rwc>0)
     for ik,rwc1 in enumerate(rwc[a1]):
@@ -40,12 +53,25 @@ def calcz(pwc,dm,cAlg,i0,j0,fint):
         zKar[a1[0][ik]]=cAlg.tablep2.zkar[ibin]+10*dn
         pRate[a1[0][ik]]+=cAlg.tablep2.rainrate[ibin]*10**dn
         att_ka[a1[0][ik]]+=cAlg.tablep2.attkar[ibin]*10**dn
+        kextH1[a1[0][ik],:]+=cAlg.tablep2.kextr[ibin,:]*10**dn
+        salbH1[a1[0][ik],:]+=cAlg.tablep2.kextr[ibin,:]*10**dn*\
+            cAlg.tablep2.salbr[ibin,:]
+        asymH1[a1[0][ik],:]+=cAlg.tablep2.kexts2[ibin,:]*10**dn*\
+            cAlg.tablep2.salbr[ibin,:]*cAlg.tablep2.asymr[ibin,:]
+    a=np.nonzero(kextH1>0)
+    asymH1[a]/=(asymH1[a]+1e-7)
+    salbH1[a]/=kextH1[a]
+    for k in range(8):
+        kextH1[binNodes[i0,j0,-1]:sfcBin[i0,j0],k]=kextH1[binNodes[i0,j0,-1],k]
+        asymH1[binNodes[i0,j0,-1]:sfcBin[i0,j0],k]=asymH1[binNodes[i0,j0,-1],k]
+        salbH1[binNodes[i0,j0,-1]:sfcBin[i0,j0],k]=salbH1[binNodes[i0,j0,-1],k]
     zKu1D=np.log10(10**(0.1*zKur)+10**(0.1*zKus))*10
     zKa1D=np.log10(10**(0.1*zKar)+10**(0.1*zKas))*10
     calc_pia(att_ka,pia_ka,dr,n)
     zKa1D-=pia_ka
 
-    return zKu1D,zKa1D,pRate
+    return zKu1D,zKa1D,pRate,kextH1,asymH1,salbH1
+
 def rte(binNodes,dm,pRate,i,j,emiss,qv,airTemp,\
         press,envNode,sfcTemp,cldw,umu,cAlg):
     freqs=[10.6,10.6,18.7,18.7,23.,37,37.,89,89.,166.,166.,186.3,190.3]
