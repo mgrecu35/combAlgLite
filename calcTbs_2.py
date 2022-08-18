@@ -8,9 +8,9 @@ import glob
 f1=sorted(glob.glob("Data/2A*"))
 f2=sorted(glob.glob("Data/2B*"))
 f3=sorted(glob.glob("Data/1C*"))
-f1=f1[1:]
-f2=f2[1:]
-f3=f3[1:]
+f1=f1[2:3]
+f2=f2[2:3]
+f3=f3[2:3]
 
 import numpy as np
 from rteSimpleModule import rte,calcz
@@ -56,6 +56,7 @@ for i,f11 in enumerate(f1[:]):
     dm=fh_cmb["KuKaGMI/precipTotDm"][:]
     cldw=fh_cmb["KuKaGMI/cloudLiqWaterCont"][:]
     sfcBin=fh_cmb["KuKaGMI/Input/surfaceRangeBin"][:,:,0]
+    sfcPrecip=fh["FS/SLV/precipRateNearSurface"][:]
     fh.close()
     fh_cmb.close()
     a=np.nonzero(pType==1)
@@ -73,6 +74,7 @@ for i,f11 in enumerate(f1[:]):
     else:
         idir=-1
     #a=[[],[]]
+    #stop
     for i0,j0 in zip(a[0],a[1]):
         xn=[0,binNodes[i0,j0,1],binNodes[i0,j0,3],\
             binNodes[i0,j0,4]]
@@ -157,7 +159,8 @@ for i,f11 in enumerate(f1[:]):
     tb2_obsL_land.extend(tc_regrid2[a][b])
     #break
     #continue
-    n1,n2=300,500
+    n1,n2=250,553 #45298
+    n1,n2=500,703 #45313
     for i0 in range(n1,n2):
         for j0 in range(49):
             xn=[0,binNodes[i0,j0,1],binNodes[i0,j0,3],\
@@ -185,6 +188,11 @@ plt.subplot(121)
 plt.pcolormesh(lon[n1:n2,:],lat[n1:n2,:],tc_regrid[n1:n2,:,8],cmap='jet',vmin=200,vmax=280)
 plt.subplot(122)
 plt.pcolormesh(lon[n1:n2,:],lat[n1:n2,:],tb2d[n1:n2,:,8],cmap='jet',vmin=200,vmax=280)
+plt.contour(lon[n1:n2,:],lat[n1:n2,:],sfcPrecip[n1:n2,:])
+plt.figure()
+#plt.subplot(121)
+plt.pcolormesh(gmi_lon[:],gmi_lat[:],tc[:,:,5],cmap='jet')
+plt.contour(lon,lat,sfcPrecip)
 stop
 tbsL_land=np.array(tbsL_land)
 tb_obsL_land=np.array(tb_obsL_land)

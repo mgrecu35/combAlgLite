@@ -8,9 +8,9 @@ import glob
 f1=sorted(glob.glob("Data/2A*"))
 f2=sorted(glob.glob("Data/2B*"))
 f3=sorted(glob.glob("Data/1C*"))
-f1=f1[1:]
-f2=f2[1:]
-f3=f3[1:]
+f1=f1[2:]
+f2=f2[2:]
+f3=f3[2:]
 
 import numpy as np
 from rteSimpleModule import rte,calcz
