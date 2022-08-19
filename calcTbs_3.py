@@ -5,12 +5,12 @@ from pyresample import kd_tree, geometry
 cAlg.read_tables()
 cAlg.initp2()
 import glob
-f1=sorted(glob.glob("Data/2A*"))
-f2=sorted(glob.glob("Data/2B*"))
-f3=sorted(glob.glob("Data/1C*"))
-f1=f1[2:3]
-f2=f2[2:3]
-f3=f3[2:3]
+f1=sorted(glob.glob("Data2/2A*"))
+f2=sorted(glob.glob("Data2/2B*"))
+f3=sorted(glob.glob("Data2/1C*"))
+f1=f1[:3]
+f2=f2[:3]
+f3=f3[:3]
 
 import numpy as np
 from rteSimpleModule import rte,calcz
@@ -160,7 +160,7 @@ for i,f11 in enumerate(f1[:]):
     #break
     #continue
     n1,n2=250,553 #45298
-    n1,n2=500,703 #45313
+    n1,n2=200,400 #45313
     tb2d_NN=np.zeros((nx,49,13),float)
     for i0 in range(n1,n2):
         for j0 in range(49):
@@ -245,7 +245,7 @@ l2, b2, w2, h2 = tp1[0].axes.get_position().bounds
 tp1[0].axes.set_position([l2,b2,w,h2])
 l3, b3, w3, h3 = tp2[0].axes.get_position().bounds
 tp2[0].axes.set_position([l3,b3,w,h3])
-fname_out='crossSect'+f11[36:-4]+'png'
+fname_out='crossSect'+f11[37:-4]+'png'
 plt.savefig(fname_out)
 stop
 tbsL_land=np.array(tbsL_land)

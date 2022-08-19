@@ -56,10 +56,10 @@ def calcz(pwc,dm,cAlg,i0,j0,fint,sfcBin,binNodes):
         kextH1[a1[0][ik],:]+=cAlg.tablep2.kextr[ibin,:]*10**dn
         salbH1[a1[0][ik],:]+=cAlg.tablep2.kextr[ibin,:]*10**dn*\
             cAlg.tablep2.salbr[ibin,:]
-        asymH1[a1[0][ik],:]+=cAlg.tablep2.kexts2[ibin,:]*10**dn*\
+        asymH1[a1[0][ik],:]+=cAlg.tablep2.kextr[ibin,:]*10**dn*\
             cAlg.tablep2.salbr[ibin,:]*cAlg.tablep2.asymr[ibin,:]
     a=np.nonzero(kextH1>0)
-    asymH1[a]/=(asymH1[a]+1e-7)
+    asymH1[a]/=(salbH1[a]+1e-7)
     salbH1[a]/=kextH1[a]
     for k in range(8):
         kextH1[binNodes[i0,j0,-1]:sfcBin[i0,j0],k]=kextH1[binNodes[i0,j0,-1],k]
@@ -72,7 +72,7 @@ def calcz(pwc,dm,cAlg,i0,j0,fint,sfcBin,binNodes):
 
     return zKu1D,zKa1D,pRate,kextH1,asymH1,salbH1
 
-def rte(binNodes,dm,pRate,i,j,emiss,qv,airTemp,\
+def rte(binNodes,dm,pRate,kextH1,asymH1,salbH1,i,j,emiss,qv,airTemp,\
         press,envNode,sfcTemp,cldw,umu,cAlg):
     freqs=[10.6,10.6,18.7,18.7,23.,37,37.,89,89.,166.,166.,186.3,190.3]
     r1L=[]
@@ -81,9 +81,9 @@ def rte(binNodes,dm,pRate,i,j,emiss,qv,airTemp,\
     npol=[1,0,1,0,1,1,0,1,0,1,0,1,1]
     iFreq=[0,0,1,1,2,3,3,4,4,5,5,6,6,7,7]
     nfreq=8
-    kextH=np.zeros((88,5,8),float)
-    salbH=np.zeros((88,5,8),float)
-    asymH=np.zeros((88,5,8),float)
+    #kextH=np.zeros((88,5,8),float)
+    #salbH=np.zeros((88,5,8),float)
+    #asymH=np.zeros((88,5,8),float)
     tbSim=[]
     iEnum=0
     for (pol,f) in zip(npol,freqs):
@@ -100,12 +100,12 @@ def rte(binNodes,dm,pRate,i,j,emiss,qv,airTemp,\
         bins=np.arange(envNode[i,j,0],envNode[i,j,-1]+1)
         kextInt=np.interp(bins,envNode[i,j,:],kextL)
         kextInt_copy=kextInt.copy()
-        #kextInt=kextInt+kextH1[envNode[i,j,0]:envNode[i,j,-1]+1,iFreq[iEnum]]
+        kextInt=kextInt+kextH1[envNode[i,j,0]:envNode[i,j,-1]+1,iFreq[iEnum]]
         salb=kextInt.copy()*0.
         asym=kextInt.copy()*0.
-        #salb=salbH1[envNode[i,j,0]:envNode[i,j,-1]+1,iFreq[iEnum]].copy()*\
-        #    (1-kextInt_old/kextInt)
-        #asym=asymH1[envNode[i,j,0]:envNode[i,j,-1]+1,iFreq[iEnum]].copy()
+        salb=salbH1[envNode[i,j,0]:envNode[i,j,-1]+1,iFreq[iEnum]].copy()*\
+            (1-kextInt_copy/kextInt)
+        asym=asymH1[envNode[i,j,0]:envNode[i,j,-1]+1,iFreq[iEnum]].copy()
         tLayer=list(np.interp(bins,envNode[i,j,:],airTemp[i,j,:]))
         tLayer.append(sfcTemp[i,j])
         iEnum+=1
@@ -113,9 +113,16 @@ def rte(binNodes,dm,pRate,i,j,emiss,qv,airTemp,\
         ebar=emis
         nL=kextInt.shape[0]
         lambert=False
-        tb1=cAlg.radtran(umu,sfcTemp[i,j],tLayer[::-1],\
-                          np.arange(nL+1)*0.25,kextInt[::-1],\
-                          salb[::-1],asym[::-1],2.7,emis,ebar,lambert)
+        try:
+            tb1=cAlg.radtran(umu,sfcTemp[i,j],tLayer[::-1],\
+                             np.arange(nL+1)*0.25,kextInt[::-1],\
+                             salb[::-1],asym[::-1],2.7,emis,ebar,lambert)
+        except:
+            print(i,j)
+            print(asym)
+            print(salb)
+            print(kextInt)
+            stop
 
         tbSim.append(tb1)
     return tbSim
