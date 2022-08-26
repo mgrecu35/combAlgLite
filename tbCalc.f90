@@ -65,8 +65,8 @@ subroutine calc_tb_f90(n1,binNodes,pwc,dm,sfcBin,pType,envNodes,qv,airTemp,press
   !print*, minval(press)
   !return
   integer omp_get_max_threads, nthreads
-  nthreads=omp_get_max_threads()
-  print*, nthreads
+  !nthreads=omp_get_max_threads()
+  !print*, nthreads
  
   do i0=1,n1
      !$OMP PARALLEL DO PRIVATE(pwc1,dm1,sfcBin1,binNodes1,envNodes1,pType1,emiss1,&
@@ -98,14 +98,15 @@ subroutine calc_tb_f90(n1,binNodes,pwc,dm,sfcBin,pType,envNodes,qv,airTemp,press
 end subroutine calc_tb_f90
 
 
-subroutine calc_tb_f90_flattened(n1,binNodes,pwc,dm,sfcBin,pType,envNodes,qv,airTemp,press,&
-     cldw,umu,sfcTemp,emiss,bbPeak,tbout)
+subroutine calc_tb_f90_flattened(n1,z_obs,binNodes,pwc,dm,sfcBin,pType,envNodes,qv,airTemp,press,&
+     cldw,umu,sfcTemp,emiss,bbPeak,tbout,tbout_dfr,pRate_out, pwc_out, swp)
   implicit none
   integer :: n1,binNodes(n1,5),sfcBin(n1)
+  real :: z_obs(n1,88,2)
   integer :: envNodes(n1,10),bbPeak(n1)
   real :: qv(n1,10),airTemp(n1,10),press(n1,10),emiss(n1,13),sfcTemp(n1),umu
   real :: pwc(n1,88),dm(n1,88), cldw(n1,88)
-  real,intent(out) :: tbout(n1,13)
+  real,intent(out) :: tbout(n1,13),tbout_dfr(n1,13),pRate_out(n1,88), pwc_out(n1,88), swp(n1,2)
   integer :: xn(4)
   integer :: pType(n1)
   integer :: i0,j0
@@ -116,9 +117,9 @@ subroutine calc_tb_f90_flattened(n1,binNodes,pwc,dm,sfcBin,pType,envNodes,qv,air
   !print*, maxval(qv)
   !print*, minval(press)
   !return
-  integer omp_get_max_threads, nthreads
-  nthreads=omp_get_max_threads()
-  print*, nthreads
+  !integer omp_get_max_threads, nthreads
+  !nthreads=omp_get_max_threads()
+  !print*, nthreads
   !$OMP PARALLEL
   !$OMP DO
   do i0=1,n1
@@ -127,9 +128,16 @@ subroutine calc_tb_f90_flattened(n1,binNodes,pwc,dm,sfcBin,pType,envNodes,qv,air
           emiss(i0,:),qv(i0,:),airTemp(i0,:),&
           press(i0,:),sfcTemp(i0),cldw(i0,:),umu,bbPeak(i0),tbout(i0,:),zKu1(i0,:),zKa1(i0,:))
      
+     call rte1d_dfr(z_obs(i0,:,:),pwc(i0,:),dm(i0,:),sfcBin(i0),&
+          binNodes(i0,:),envNodes(i0,:),pType(i0),&
+          emiss(i0,:),qv(i0,:),airTemp(i0,:),&
+          press(i0,:),sfcTemp(i0),cldw(i0,:),umu,bbPeak(i0),tbout_dfr(i0,:),zKu1(i0,:),zKa1(i0,:),&
+          pRate_out(i0,:),swp(i0,:))
+     
   enddo
   !$OMP END DO
   !$OMP END PARALLEL
+  pwc_out=pwc
 end subroutine calc_tb_f90_flattened
 
 subroutine rte1d(pwc1,dm1,sfcBin1,binNodes1,envNodes1,pType1,emiss1,qv1,airTemp1,&
@@ -158,6 +166,34 @@ subroutine rte1d(pwc1,dm1,sfcBin1,binNodes1,envNodes1,pType1,emiss1,qv1,airTemp1
   call rte1(binNodes1,sfcBin1,dm1,kextH1,asymH1,salbH1,emiss1,qv1,airTemp1, &
        press1,envNodes1,sfcTemp1,cldw1,umu,tbout_13)
 end subroutine rte1d
+
+
+subroutine rte1d_dfr(z_obs,pwc1,dm1,sfcBin1,binNodes1,envNodes1,pType1,emiss1,qv1,airTemp1,&
+     press1,sfcTemp1,cldw1,umu,bbPeak,tbout_13,zKu1,zKa1,prate_out,swp)
+  implicit none
+  real ::  pwc1(88),dm1(88), airTemp1(10), qv1(10), press1(10),sfcTemp1,cldw1(88)
+  real :: yn(4), fint(88), prate_out(88)
+  integer :: xn(4), bbPeak
+  real :: kextH1(88,8),salbH1(88,8), asymH1(88,8), kext_int(73)
+  integer :: envNodes1(10), binNodes1(5), sfcBin1, pType1
+  real :: tbout_13(13), zKu1(88), zKa1(88)
+  real :: emiss1(13), umu, z_obs(88,2),swp(2)
+  
+  xn=(/0,binNodes1(2),binNodes1(4),binNodes1(5)/)
+  yn=(/0,0,1,1/)
+  call interpol(xn,yn,fint,sfcBin1)
+  !fint=0
+  if(pType1>0) then
+     call calcz1_dfr(z_obs,pwc1,dm1,fint,sfcBin1,binNodes1,bbPeak,&
+          kextH1,salbH1,asymH1,zKu1,zKa1,prate_out,swp)
+  else
+     kextH1=0
+     salbH1=0
+     asymH1=0
+  endif
+  call rte1(binNodes1,sfcBin1,dm1,kextH1,asymH1,salbH1,emiss1,qv1,airTemp1, &
+       press1,envNodes1,sfcTemp1,cldw1,umu,tbout_13)
+end subroutine rte1d_dfr
 
 
 subroutine rte1d_o(pwc1,dm1,sfcBin1,binNodes1,envNodes1,pType1,emiss1,qv1,airTemp1,&
@@ -294,16 +330,186 @@ subroutine calcz1(pwc1,dm1,fint,sfcBin1,binNodes1,bbPeak,&
         fract=(bbPeak-k)/4.0
         call bisection2(dmbb(1:289),289,dm1(k),ibin)
         pwc_bb=pwcbb(ibin)
-        dn=log10(pwc1(k)/pwc_bb)
-        kextH1(k+1,:)=kextH1(k+1,:)*(1-fract)+fract*kextbb(ibin,:)*10**dn
-        salbH1(k+1,:)=salbH1(k+1,:)*(1-fract)+fract*salbbb(ibin,:)
-        asymH1(k+1,:)=asymH1(k+1,:)*(1-fract)+fract*asymbb(ibin,:)
+        if(pwc1(k)>0) then
+           dn=log10(pwc1(k)/pwc_bb)
+           kextH1(k+1,:)=kextH1(k+1,:)*(1-fract)+fract*kextbb(ibin,:)*10**dn
+           salbH1(k+1,:)=salbH1(k+1,:)*(1-fract)+fract*salbbb(ibin,:)
+           asymH1(k+1,:)=asymH1(k+1,:)*(1-fract)+fract*asymbb(ibin,:)
+        endif
+     enddo
+     do k=bbPeak+1,bbPeak+3
+        if(k<88) then
+           fract=1-(k-bbPeak)/3.
+           call bisection2(dmbb(1:289),289,dm1(k),ibin)
+           pwc_bb=pwcbb(ibin)
+           if(pwc1(k)>0) then
+              dn=log10(pwc1(k)/pwc_bb)
+              kextH1(k+1,:)=kextH1(k+1,:)*(1-fract)+fract*kextbb(ibin,:)*10**dn
+              salbH1(k+1,:)=salbH1(k+1,:)*(1-fract)+fract*salbbb(ibin,:)
+              asymH1(k+1,:)=asymH1(k+1,:)*(1-fract)+fract*asymbb(ibin,:)
+           endif
+        endif
      enddo
   endif
   do k=1,88
      zKu1(k)=10*log10(10.0**(0.1*zKur_l(k))+10.0**(0.1*zKus_l(k)))
   enddo
 end subroutine calcz1
+
+
+subroutine calcz1_dfr(z_obs,pwc1,dm1,fint,sfcBin1,binNodes1,bbPeak,&
+     kextH1,salbH1,asymH1,zKu1,zKa1,pRate_out,swp)
+  use tablep2
+  implicit none
+  integer :: k
+  real :: fint(88), pwc1(88), dm1(88), z_obs(88,2)
+  integer :: sfcbin1, binNodes1(5),bbPeak
+  real :: zKus_l(88), zKas_l(88), zKur_l(88), zKar_l(88)
+  real :: pRate(88), att_Ka(88), att_Ku(88)
+  real :: swc_l(88), rwc_l(88)
+  real :: swc_bin, rwc_bin, dn, dr, pia_ka, pia_ku
+  real,intent(out) :: kextH1(88,8),salbH1(88,8),asymH1(88,8),zKu1(88),zKa1(88), pRate_out(88)
+  integer :: ibin, n, j, ik
+  real :: fract, pwc_bb, dwr1
+  real, intent(out) :: swp(2)
+  
+  swc_l=pwc1(:)*(1-fint)
+  rwc_l=pwc1(:)*fint
+  
+  zKus_l=-99
+  zKas_l=-99
+  zKur_l=-99
+  zKar_l=-99
+  pRate=0
+
+  att_Ka=0
+  att_Ku=0
+  kextH1=0
+  salbH1=0
+  asymH1=0
+  
+  dr=0.25
+  n=88
+  pia_ka=0
+  swp=0
+  do k=max(binNodes1(1)+1,1),min(1+binNodes1(5),88)
+     if (swc_l(k)>1e-3) then
+        swp(1)=swp(1)+swc_l(k)
+        if(k<binNodes1(3)+1-3)then
+           dwr1=z_obs(k,1)-z_obs(k,2)
+           !print*, dwr1
+           if(dwr1>0.5 .and. dwr1<9 .and. z_obs(k,1)>12) then
+              !dwr=(cAlg.tablep2.zkus-cAlg.tablep2.zkas)[:253]
+              call bisection2(dwr(1:253),253,dwr1,ibin)
+              dn=(z_obs(k,1)-zkus(ibin))/10.
+              !print*, swc(ibin)*10**dn, swc_l(k)
+              if(swc_l(k)>0.98*pwc1(k))then
+                 pwc1(k)=swc(ibin)*10**dn
+              end if
+              swc_l(k)=swc(ibin)*10**dn
+              !print*, dm1(k), dms(ibin)
+              dm1(k)=dms(ibin)
+           else
+              !print*, dwr1, 'out of range'
+           endif
+        endif
+        swp(2)=swp(2)+swc_l(k)
+        if(dm1(k)<dms(1)) then
+           ibin=1
+        else
+           call bisection2(dms(1:253),253,dm1(k),ibin)
+        end if
+        ibin=min(253,ibin)
+        ibin=max(1,ibin)
+        !print*, ibin, 253, k
+        swc_bin=swc(ibin)
+        dn=log10(swc_l(k)/swc_bin)
+        zKus_l(k)=zkus(ibin)+10*dn
+        zKas_l(k)=zkas(ibin)+10*dn
+        pRate_out(k)=snowrate(ibin)*10**dn
+        att_ka(k)=attkas(ibin)*10**dn
+        kextH1(k,:)=kextH1(k,:)+kexts2(ibin,:)*10**dn
+        salbH1(k,:)=salbH1(k,:)+kexts2(ibin,:)*10**dn*&
+             salbs2(ibin,:)
+        asymH1(k,:)=asymH1(k,:)+kexts2(ibin,:)*10**dn*&
+             salbs2(ibin,:)*asyms2(ibin,:)
+     end if
+  enddo
+  !kextH1=0
+  !salbH1=0
+  !asymH1=0
+  !return
+  zKur_l=-99
+  zKar_l=-99
+  
+  do k=max(binNodes1(1)+1,1),min(1+binNodes1(5),88)
+     if (rwc_l(k)>1e-3) then
+        if(dm1(k)<dmr(1)) then
+           ibin=1
+        else
+           call bisection2(dmr(1:289),289,dm1(k),ibin)
+        endif
+        ibin=min(289,ibin)
+        ibin=max(1,ibin)
+        rwc_bin=rwc(ibin)
+        dn=log10(rwc_l(k)/rwc_bin)
+        zKur_l(k)=zkur(ibin)+10*dn
+        zKar_l(k)=zkar(ibin)+10*dn
+        pRate(k)=pRate(k)+rainrate(ibin)*10**dn
+        att_ka(k)=att_ka(k)+attkar(ibin)*10**dn
+        kextH1(k,:)=kextH1(k,:)+kextr(ibin,:)*10**dn
+        salbH1(k,:)=salbH1(k,:)+kextr(ibin,:)*10**dn*&
+             salbr(ibin,:)
+        asymH1(k,:)=asymH1(k,:)+kextr(ibin,:)*10**dn*&
+             salbr(ibin,:)*asymr(ibin,:)
+     endif
+  end do
+  do k=max(1+binNodes1(1),1),min(1+binNodes1(5),88)
+     do j=1,8
+        if (kextH1(k,j)>1e-9) then
+           asymH1(k,j)=asymH1(k,j)/(salbH1(k,j)+1e-9)
+           salbH1(k,j)=salbH1(k,j)/kextH1(k,j)
+        endif
+     enddo
+  enddo
+  if (binNodes1(5)+1>88) return
+  do ik=max(binNodes1(5)+1,1),min(sfcBin1+1,88)
+     do k=1,8
+        kextH1(ik,k)=kextH1(binNodes1(5)+1,k)
+        asymH1(ik,k)=asymH1(binNodes1(5)+1,k)
+        salbH1(ik,k)=salbH1(binNodes1(5)+1,k)
+     enddo
+  enddo
+  if(bbPeak>0.and.bbPeak<88) then
+     do k=bbPeak-3,bbPeak
+        fract=1-(bbPeak-k)/4.0
+        call bisection2(dmbb(1:289),289,dm1(k),ibin)
+        pwc_bb=pwcbb(ibin)
+        if(pwc1(k)>0) then
+           dn=log10(pwc1(k)/pwc_bb)
+           kextH1(k+1,:)=kextH1(k+1,:)*(1-fract)+fract*kextbb(ibin,:)*10**dn
+           salbH1(k+1,:)=salbH1(k+1,:)*(1-fract)+fract*salbbb(ibin,:)
+           asymH1(k+1,:)=asymH1(k+1,:)*(1-fract)+fract*asymbb(ibin,:)
+        endif
+     enddo
+     do k=bbPeak+1,bbPeak+3
+        if(k<88) then
+           fract=1-(k-bbPeak)/3.
+           call bisection2(dmbb(1:289),289,dm1(k),ibin)
+           pwc_bb=pwcbb(ibin)
+           if(pwc1(k)>0) then
+              dn=log10(pwc1(k)/pwc_bb)
+              kextH1(k+1,:)=kextH1(k+1,:)*(1-fract)+fract*kextbb(ibin,:)*10**dn
+              salbH1(k+1,:)=salbH1(k+1,:)*(1-fract)+fract*salbbb(ibin,:)
+              asymH1(k+1,:)=asymH1(k+1,:)*(1-fract)+fract*asymbb(ibin,:)
+           endif
+        endif
+     enddo
+  endif
+  do k=1,88
+     zKu1(k)=10*log10(10.0**(0.1*zKur_l(k))+10.0**(0.1*zKus_l(k)))
+  enddo
+end subroutine calcz1_dfr
 
 
 subroutine calcz(n1,pwc_l,dm,i0,j0,fint,sfcBin,binNodes,&
@@ -467,7 +673,7 @@ subroutine rte(n1,binNodes,sfcBin,dm,kextH1,asymH1,salbH1,i,j,emiss,qv,airTemp, 
         if(k+envNode(i,j,1)<88) then
            kext(k)=kext(k)+kextH1(k+envNode(i,j,1),iFreq(i_freq)+1)
            salb(k)=salbH1(k+envNode(i,j,1),iFreq(i_freq)+1)* &
-                (kext_int(k)/kext(k))
+                (1-kext_int(k)/kext(k))
            asym(k)=asymH1(k+envNode(i,j,1),iFreq(i_freq)+1)
         endif
      enddo
@@ -576,7 +782,7 @@ subroutine rte1(binNodes1,sfcBin1,dm1,kextH1,asymH1,salbH1,emiss1,qv1,airTemp1, 
      do k=1,73
         if(k+envNode1(1)>0.and.k+envNode1(1)<=88) then
            kext(k)=kext_int(k)+kextH1(k+envNode1(1),iFreq(i_freq)+1)
-           salb(k)=salbH1(k+envNode1(1),iFreq(i_freq)+1)*(kext_int(k)/kext(k))
+           salb(k)=salbH1(k+envNode1(1),iFreq(i_freq)+1)*(1-kext_int(k)/kext(k))
            if(salb(k)<0) salb(k)=0
            if(salb(k)>1) salb(k)=1
            asym(k)=asymH1(k+envNode1(1),iFreq(i_freq)+1)
@@ -607,18 +813,22 @@ subroutine rte1(binNodes1,sfcBin1,dm1,kextH1,asymH1,salbH1,emiss1,qv1,airTemp1, 
      fisot=2.7
      !print*, kext_rev(1:nlyr)
      !print*, sfcBin1, sfcTemp1, emis, ebar
-     nlyr=70
+     nlyr=72
+     do while(abs(kext_rev(nlyr))<1e-7.and.nlyr>50)
+        nlyr=nlyr-1
+     end do
+        
      call radtran(umu, nlyr, tb, sfcTemp1, lyrtemp, lyrhgt, kext_rev, &
           salb_rev, asym_rev, fisot, emis, ebar, lambert)
 
 
      if(tb>300.or.tb<0.or.isnan(tb)) then
-        !do k=1,nlyr
-        !   print*, kext_rev(k),salb_rev(k),asym_rev(k),lyrtemp(k),lyrhgt(k)
-        !enddo
-        !print*, emis, ebar, sfcTemp1, tb, nlyr, umu, lyrtemp(nlyr+1), &
-        !     lyrhgt(nlyr+1)
-        !stop
+        do k=1,nlyr
+           print*, kext_rev(k),salb_rev(k),asym_rev(k),lyrtemp(k),lyrhgt(k)
+        enddo
+        print*, emis, ebar, sfcTemp1, tb, nlyr, umu, lyrtemp(nlyr+1), &
+             lyrhgt(nlyr+1)
+        stop
      endif
      tbout_13(i_freq)=tb
      !return

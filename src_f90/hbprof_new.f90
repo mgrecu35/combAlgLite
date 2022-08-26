@@ -51,7 +51,7 @@ module tableP2
   real :: salbR(300,8)
   real :: salbH(300,8)
   real :: salbBB(300,8)
-  
+  real :: dwr(300)
   integer :: nJ
 end module tableP2
 subroutine initP2
@@ -77,8 +77,8 @@ subroutine initP2
   kextBB(1:289,1:8)=kextTableBB(1:289,1:8,3)
   salbBB(1:289,1:8)=salbTableBB(1:289,1:8,3)
   asymBB(1:289,1:8)=asymTableBB(1:289,1:8,3)
-
-  print*, kextTable(80,5,1)
+  
+  !print*, kextTable(80,5,1)
   do i=1,nbins
      zKuR(i)=zmin+(i-1)*dzbin
      zKaR(i)=z35Table(i,1)
@@ -107,7 +107,7 @@ subroutine initP2
      rainRate(i)=pr13Table(i,1)
      graupRate(i)=pr13TableG(i,1)
      snowRate(i)=pr13TableS2(i,1)
-     pRateBB(i)=pr13TableBB(i,1)
+     pRateBB(i)=10**pr13TableBB(i,1)
      hailRate(i)=pr13TableG(i,1)
      rwc(i)=10**pwc13Table(i,1)
      pwcbb(i)=10**pwc13TableBB(i,1)
@@ -115,6 +115,7 @@ subroutine initP2
      swc(i)=10**pwc13TableS2(i,1)
      hwc(i)=10**pwc13TableH(i,1)
   end do
+  dwr(1:253)=zkus(1:253)-zkas(1:253)
   !print*,f
   !stop
   nJ=nbins
