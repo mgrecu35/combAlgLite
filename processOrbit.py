@@ -1,16 +1,44 @@
-import read_tables as cAlg
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from netCDF4 import Dataset
+import xarray as xr
 from pyresample import kd_tree, geometry
+#stop
+import read_tables as cAlg
 cAlg.read_tables()
 cAlg.initp2()
+#stop
 import glob
-f1=sorted(glob.glob("Data_2019/2A*"))
-f2=sorted(glob.glob("Data_2019/2B*"))
-f3=sorted(glob.glob("Data_2019/1C*"))
-f1=f1[:]
-f2=f2[:]
-f3=f3[:]
+f1=[]
+f2=[]
+f3=[]
+#stop
+if 1==0:
+    for i in range(31):
+        f11=sorted(glob.glob("/gpmdata/2018/12/%2.2i/radar/2A.GPM.DPR.V9-20211125.*"%(i+1)))
+        f21=sorted(glob.glob("/gpmdata/2018/12/%2.2i/radar/2B.GPM.DPRGMI.CO*"%(i+1)))
+        f31=sorted(glob.glob("/gpmdata/2018/12/%2.2i/1C/1C.GPM.GMI.*"%(i+1)))
+        f1.extend(f11)
+        f2.extend(f21)
+        f3.extend(f31)
+    for i in range(31):
+        f11=sorted(glob.glob("/gpmdata/2019/01/%2.2i/radar/2A.GPM.DPR.V9-20211125.*"%(i+1)))
+        f21=sorted(glob.glob("/gpmdata/2019/01/%2.2i/radar/2B.GPM.DPRGMI.CO*"%(i+1)))
+        f31=sorted(glob.glob("/gpmdata/2019/01/%2.2i/1C/1C.GPM.GMI.*"%(i+1)))
+        f1.extend(f11)
+        f2.extend(f21)
+        f3.extend(f31)
+    for i in range(28):
+        f11=sorted(glob.glob("/gpmdata/2019/02/%2.2i/radar/2A.GPM.DPR.V9-20211125.*"%(i+1)))
+        f21=sorted(glob.glob("/gpmdata/2019/02/%2.2i/radar/2B.GPM.DPRGMI.CO*"%(i+1)))
+        f31=sorted(glob.glob("/gpmdata/2019/02/%2.2i/1C/1C.GPM.GMI.*"%(i+1)))
+        f1.extend(f11)
+        f2.extend(f21)
+        f3.extend(f31)
+
+    import pickle
+    #pickle.dump(
+else:
+    f1,f2,f3=pickle.load(open("djf_2018_fileList.pklz","rb"))
 
 import numpy as np
 #from rteSimpleModule import rte,calcz
@@ -22,9 +50,13 @@ npix1,npix2=0,0
 umu=np.cos(53/180*3.14)
 def readData(f1_,f2_,f3_,n1,n2):
     fh=Dataset(f1_)
-    zKu=fh["FS/PRE/zFactorMeasured"][n1:n2,:,:,:]
     lon=fh["FS/Longitude"][n1:n2,:]
     lat=fh["FS/Latitude"][n1:n2,:]
+    icount=0
+    for lon1,lat2 in zip(lon[:,24],lat[:,24]):
+        if lon1>-110 and lon1<-65 and lat1>30 and lat1<60:
+            icount+=1
+    zKu=fh["FS/PRE/zFactorMeasured"][n1:n2,:,:,:]
     sfcType=fh["FS/PRE/landSurfaceType"][n1:n2,:]
     pType=fh["FS/CSF/typePrecip"][n1:n2,:]
     pType=(pType/1e7).astype(int)
@@ -75,18 +107,18 @@ def readData(f1_,f2_,f3_,n1,n2):
     umu=np.cos(53/180.0*np.pi)
     bsf1=bsf[:,:,0]
     n1=qv.shape[0]
-    print(envNodes[132,14,:])
-    print(airTemp.shape)
-    print(envNodes[:,:,0].min(),envNodes[:,:,0].max())
-    print(cldw.shape)
-    print(umu)
-    print(skTemp.shape)
-    print(sfcEmiss.shape)
+    #print(envNodes[132,14,:])
+    #print(airTemp.shape)
+    #print(envNodes[:,:,0].min(),envNodes[:,:,0].max())
+    #print(cldw.shape)
+    #print(umu)
+    #print(skTemp.shape)
+    #print(sfcEmiss.shape)
     a=np.nonzero(pType>0)
-    print(a[0][0],a[1][0])
+    print(len(a[0]))
         
     return qv,press,sfcType,pType,airTemp,envNodes,binNodes,\
-        bcf,bsf1,pwc,sfcEmiss,dm,skTemp,lon,lat,tc_regrid,tc_regrid2,zKu,cldw,bbPeak,h0,pRateCMB
+        bcf,bsf1,pwc,sfcEmiss,dm,skTemp,lon,lat,tc_regrid,tc_regrid2,zKu,cldw,bbPeak,h0,pRateCMB,ic
 
 
 f1_=f1[0]
@@ -94,7 +126,7 @@ f2_=f2[0]
 f3_=f3[0]
 #stop
 
-import xarray as xr
+
 
 def processOrbit(f1_,f2_,f3_):
     tboutL=[]
@@ -110,7 +142,7 @@ def processOrbit(f1_,f2_,f3_):
     for i in range(10):
         qv,press,sfcType,pType,airTemp,envNodes,binNodes,\
             bcf,bsf,pwc,sfcEmiss,dm,skTemp,lon,lat,tc_regrid,\
-            tc_regrid2,zObs,cldw,bbPeak,h0,pRateCMB=\
+            tc_regrid2,zObs,cldw,bbPeak,h0,pRateCMB,ic=\
                 readData(f1_,f2_,f3_,i*700,(i+1)*700)
         zObs=zObs[:,:,::2,:]
         bbPeak=(bbPeak/2).astype(int)
@@ -164,5 +196,7 @@ def processOrbit(f1_,f2_,f3_):
     fnameout='simTb.'+f1_.split('.')[-4]+'.'+ f1_.split('.')[-3]+'.nc'
     ds.to_netcdf(fnameout, encoding=encoding)
     
-
-processOrbit(f1_,f2_,f3_)
+for f1_,f2_,f3_ in zip(f1[12:],f2[12:],f3[12:]):
+    print(f1_,f2_,f3_)
+    processOrbit(f1_,f2_,f3_)
+    stop
