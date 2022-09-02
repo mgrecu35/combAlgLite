@@ -6,7 +6,11 @@ from pyresample import kd_tree, geometry
 import read_tables as cAlg
 cAlg.read_tables()
 cAlg.initp2()
-#stop
+cAlg.read_zku_dm()
+import fkb
+fkb.init_keras()
+
+
 import glob
 f1=[]
 f2=[]
@@ -37,7 +41,7 @@ if 1==0:
         f3.extend(f31)
 
     import pickle
-    #pickle.dump(
+
 else:
     f1,f2,f3=pickle.load(open("djf_2018_fileList.pklz","rb"))
 
@@ -264,9 +268,12 @@ for i in range(1,0):
 
 
 import matplotlib.pyplot as plt
-
+import matplotlib
+matplotlib.use('TkAgg')
 pwcL=[]
+zDBL=[]
 sfcPrecipL=[]
+tempL=[]
 for f1_,f2_,f3_,f4_ in zip(f1[:],f2[:],f3[:],f4):
     i=0
     nc1=Dataset(f4_)
@@ -311,11 +318,13 @@ for f1_,f2_,f3_,f4_ in zip(f1[:],f2[:],f3[:],f4):
             i2=a[1][ic]
             t1=np.interp(range(88),envNodes[i1,i2],airTemp[i1,i2])
             if t1[binNodes[i1,i2,4]-1]<273.15 and pTypeMRMS[i1,i2]==3 and precipRateMRMS[i1,i2]>=-0.01 \
-               and rqi[i1,i2]>0.8 and abs(i2-24)<4:
+               and rqi[i1,i2]>0.8 and abs(i2-24)<24:
                 #print(pwc[i1,i2,binNodes[i1,i2,4]-1],pwc[i1,i2,binNodes[i1,i2,4]])
                 pwcL.append([pwc[i1,i2,binNodes[i1,i2,4]-1],pwc_out[ic,binNodes[i1,i2,4]-1]])
-                sfcPrecipL.append([pRateCMB[i1,i2,binNodes[i1,i2,4]-1],prate_out[ic,binNodes[i1,i2,4]-1],\
+                sfcPrecipL.append([pRateCMB[i1,i2,binNodes[i1,i2,4]-1],pwc[i1,i2,binNodes[i1,i2,4]-1],\
                                    precipRateMRMS[i1,i2],precipRateSAT[i1,i2]])
+                zDBL.append(zObs[i1,i2,binNodes[i1,i2,4]-1,:])
+                tempL.append(t1[binNodes[i1,i2,4]-1])
     #stop
     #print(n1,n2)
     #if ic>0:
@@ -328,3 +337,34 @@ for f1_,f2_,f3_,f4_ in zip(f1[:],f2[:],f3[:],f4):
 
 pwcL=np.array(pwcL)
 sfcPrecipL=np.array(sfcPrecipL)
+a1=np.nonzero(sfcPrecipL[:,1]>0)
+sRateCoeff=np.polyfit(np.log10(sfcPrecipL[a1[0],1]),np.log10(sfcPrecipL[a1[0],2]),1)
+zDBL=np.array(zDBL)
+tempL=np.array(tempL)
+zDBL[zDBL<0]=0
+
+from chaseRet import *
+Nw,dm,IWC= retr(zDBL,tempL-273.15)
+Xf=np.zeros((zDBL.shape[0],3),float)
+Xf[:,:2]=zDBL
+Xf[:,2]=tempL-273.15
+y_keras=fkb.call_keras(Xf)
+iwc_dfr,dm_dfr=cAlg.iwc_from_dfr(zDBL,tempL-273)
+zsim_out,iwc_dfr2,dm_dfr2,pRate_out=cAlg.iwc_from_dfr2(zDBL,tempL-273)
+from sklearn.neighbors import KNeighborsRegressor
+
+nc2=Dataset("collocatedZ_SSRGA_BF.nc")
+z1=nc2["zKu_SSRGA"][:]
+z2=nc2["zKa_SSRGA"][:]
+tempC=nc2["tempC"][:]
+iwc2=nc2["iwc_PSD"][:]
+X=[]
+y=[]
+for x1,x2,x3,iwc21 in zip(z1,z2,tempC,iwc2):
+    if x1>0 and x2>0 and iwc21>-0.1:
+        X.append([x1,x2,x3])
+        y.append(iwc21)
+n_neigh=150
+neigh_iwc=KNeighborsRegressor(n_neighbors=n_neigh,weights='distance')
+neigh_iwc.fit(X,y)
+y2=neigh_iwc.predict([[dbz1[0],dbz1[1],temp1-273.15] for dbz1,temp1 in zip(zDBL,tempL)])
