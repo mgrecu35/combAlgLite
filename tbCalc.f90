@@ -127,7 +127,12 @@ subroutine calc_tb_f90_flattened(n1,z_obs,binNodes,pwc,dm,sfcBin,pType,envNodes,
           binNodes(i0,:),envNodes(i0,:),pType(i0),&
           emiss(i0,:),qv(i0,:),airTemp(i0,:),&
           press(i0,:),sfcTemp(i0),cldw(i0,:),umu,bbPeak(i0),tbout(i0,:),zKu1(i0,:),zKa1(i0,:))
-     
+  enddo
+  !$OMP END DO
+  !$OMP END PARALLEL
+  !$OMP PARALLEL
+  !$OMP DO
+  do i0=1,n1
      call rte1d_dfr(z_obs(i0,:,:),pwc(i0,:),dm(i0,:),sfcBin(i0),&
           binNodes(i0,:),envNodes(i0,:),pType(i0),&
           emiss(i0,:),qv(i0,:),airTemp(i0,:),&
@@ -813,8 +818,8 @@ subroutine rte1(binNodes1,sfcBin1,dm1,kextH1,asymH1,salbH1,emiss1,qv1,airTemp1, 
      fisot=2.7
      !print*, kext_rev(1:nlyr)
      !print*, sfcBin1, sfcTemp1, emis, ebar
-     nlyr=72
-     do while(abs(kext_rev(nlyr))<1e-7.and.nlyr>50)
+     nlyr=70
+     do while(abs(kext_rev(nlyr))<1e-7.and.nlyr>30)
         nlyr=nlyr-1
      end do
         
@@ -822,13 +827,15 @@ subroutine rte1(binNodes1,sfcBin1,dm1,kextH1,asymH1,salbH1,emiss1,qv1,airTemp1, 
           salb_rev, asym_rev, fisot, emis, ebar, lambert)
 
 
-     if(tb>300.or.tb<0.or.isnan(tb)) then
-        do k=1,nlyr
+     if(tb>350.or.tb<0.or.isnan(tb)) then
+        do k=1,-nlyr
            print*, kext_rev(k),salb_rev(k),asym_rev(k),lyrtemp(k),lyrhgt(k)
         enddo
-        print*, emis, ebar, sfcTemp1, tb, nlyr, umu, lyrtemp(nlyr+1), &
-             lyrhgt(nlyr+1)
-        stop
+        !print*, emis, ebar, sfcTemp1, tb, nlyr, umu, lyrtemp(nlyr+1), &
+        !     lyrhgt(nlyr+1)
+        !stop
+        print*,tb,freqs(i_freq)
+        tb=-999
      endif
      tbout_13(i_freq)=tb
      !return
